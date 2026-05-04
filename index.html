@@ -104,8 +104,71 @@ tr.no-data td{color:#999;text-align:center;padding:20px}
 </header>
 <main id="app"></main>
 
-<script>
 // ====== DATA ======
+const SHEET_ID = '1_vcL8mwgzfdP_pHBmFiIInUKguOgeuEHKcdYv7_o0Tg';
+const SHEET_NAME = '讓桿資料';
+
+// ====== GOOGLE SHEETS SYNC ======
+async function loadFromSheet() {
+  try {
+    const token = await getGoogleToken();
+    const range = `${SHEET_NAME}!A2:D`; // skip header row
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data = await resp.json();
+    if (!data.values) return [];
+    return data.values.map(row => ({
+      a: String(row[0] || ''),
+      b: String(row[1] || ''),
+      value: parseFloat(row[2]) || 0,
+      condition: {},
+      source: String(row[3] || '')
+    }));
+  } catch(e) {
+    console.error('loadFromSheet error:', e);
+    return [];
+  }
+}
+
+async function saveToSheet(pairs) {
+  try {
+    const token = await getGoogleToken();
+    const values = pairs.map(p => [p.a, p.b, p.value, p.source || '']);
+    const body = { values };
+    const range = `${SHEET_NAME}!A2:D${values.length + 1}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return resp.ok;
+  } catch(e) {
+    console.error('saveToSheet error:', e);
+    return false;
+  }
+}
+
+// Fetches a fresh access token from the local Hermes-managed token server
+// Run: python3 token_server.py (in the same directory as this HTML)
+async function getGoogleToken() {
+  const stored = localStorage.getItem('gapi_access_token');
+  const storedExpiry = localStorage.getItem('gapi_token_expiry');
+  // Use cached token if not expired (with 60s buffer)
+  if (stored && storedExpiry && Date.now() < parseInt(storedExpiry)) {
+    return stored;
+  }
+  // Fetch fresh token from local token server
+  const resp = await fetch('http://localhost:18765/token');
+  if (!resp.ok) throw new Error('Failed to get Google token from local server');
+  const token = await resp.text();
+  // Cache for 55 minutes (tokens expire in 1 hour)
+  localStorage.setItem('gapi_access_token', token);
+  localStorage.setItem('gapi_token_expiry', String(Date.now() + 55 * 60 * 1000));
+  return token;
+}
+
+
 const PLAYERS = [
   {
     "id": "Wii",
@@ -1348,7 +1411,7 @@ function updateEditPreview() {
   preview.style.color='#222';
 }
 
-function savePair() {
+async function savePair() {
   const a = document.getElementById('edit-a').value;
   const b = document.getElementById('edit-b').value;
   const v = parseInt(document.getElementById('edit-val').value)||0;
@@ -1372,7 +1435,7 @@ function savePair() {
   navigate('edit');
 }
 
-function deletePair() {
+async function deletePair() {
   const a = document.getElementById('edit-a').value;
   const b = document.getElementById('edit-b').value;
   if (!confirm(`確定刪除 ${pname(a)} 與 ${pname(b)} 的讓桿記錄？`)) return;
@@ -1385,7 +1448,7 @@ function deletePair() {
   }
 }
 
-function deletePairByIdx(idx) {
+async function deletePairByIdx(idx) {
   const p = PAIRS[idx];
   if (!confirm(`確定刪除 ${pname(p.a)} 與 ${pname(p.b)} 的讓桿記錄？`)) return;
   const deleted = PAIRS.splice(idx,1)[0];
@@ -1406,8 +1469,9 @@ function pushHistory(title, desc, pairsSnapshot) {
   localStorage.setItem('golf_history', JSON.stringify(h.slice(-200)));
 }
 
-function saveData() {
+async function saveData() {
   localStorage.setItem('golf_pairs', JSON.stringify(PAIRS));
+  await saveToSheet(PAIRS);
 }
 
 function attachEvents() {
@@ -1420,16 +1484,28 @@ if (localStorage.getItem('golf_editor')) {
   editor = localStorage.getItem('golf_editor');
 }
 
-// Load saved pairs (merge with embedded)
-(function mergeData() {
-  const saved = localStorage.getItem('golf_pairs');
-  if (saved) {
-    try { const arr = JSON.parse(saved); if (arr.length>0) return; } catch(e){}
+async function init() {
+  const sheetPairs = await loadFromSheet();
+  if (sheetPairs.length > 0) {
+    PAIRS.length = 0;
+    sheetPairs.forEach(p => PAIRS.push(p));
+    localStorage.setItem('golf_pairs', JSON.stringify(PAIRS));
+  } else {
+    // Fallback: load from localStorage
+    const saved = localStorage.getItem('golf_pairs');
+    if (saved) {
+      try {
+        const arr = JSON.parse(saved);
+        if (arr.length > 0) {
+          PAIRS.length = 0;
+          arr.forEach(p => PAIRS.push(p));
+        }
+      } catch(e) {}
+    }
   }
-  saveData();
-})();
-
-render();
+  render();
+}
+init();
 </script>
 </body>
 </html>
