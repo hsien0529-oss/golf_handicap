@@ -104,25 +104,28 @@ tr.no-data td{color:#999;text-align:center;padding:20px}
 </header>
 <main id="app"></main>
 
-// ====== DATA ======
-const SHEET_ID = '1_vcL8mwgzfdP_pHBmFiIInUKguOgeuEHKcdYv7_o0Tg';
-const SHEET_NAME = '讓桿資料';
+<script>
+// ====== JSONBin 雲端同步設定 ======
+const BIN_ID  = '69f88116aaba8821976c7b81';
+const API_KEY = '$2a$10$j.lUX2/2iCIOMIKUMHzLLeJg0EkOS6JUqnvg2HheEfZDFWvH2DNq2';
+const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
-// ====== GOOGLE SHEETS SYNC ======
+// 從 JSONBin 讀取讓桿資料
 async function loadFromSheet() {
   try {
-    const token = await getGoogleToken();
-    const range = `${SHEET_NAME}!A2:D`; // skip header row
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const resp = await fetch(`${BIN_URL}/latest`, {
+      headers: { 'X-Master-Key': API_KEY, 'X-Bin-Meta': 'false' }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
-    if (!data.values) return [];
-    return data.values.map(row => ({
-      a: String(row[0] || ''),
-      b: String(row[1] || ''),
-      value: parseFloat(row[2]) || 0,
-      condition: {},
-      source: String(row[3] || '')
+    // 兼容舊格式：直接是陣列；新格式：{ pairs: [...] }
+    const pairs = Array.isArray(data) ? data : (data.pairs || []);
+    return pairs.map(p => ({
+      a: String(p.a || ''),
+      b: String(p.b || ''),
+      value: parseFloat(p.value) || 0,
+      condition: p.condition || {},
+      source: String(p.source || '')
     }));
   } catch(e) {
     console.error('loadFromSheet error:', e);
@@ -130,42 +133,31 @@ async function loadFromSheet() {
   }
 }
 
+// 把讓桿資料寫回 JSONBin
 async function saveToSheet(pairs) {
   try {
-    const token = await getGoogleToken();
-    const values = pairs.map(p => [p.a, p.b, p.value, p.source || '']);
-    const body = { values };
-    const range = `${SHEET_NAME}!A2:D${values.length + 1}`;
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=RAW`;
-    const resp = await fetch(url, {
+    const body = {
+      pairs: pairs,
+      updated: new Date().toISOString(),
+      updatedBy: (typeof editor !== 'undefined' && editor) ? editor : 'unknown'
+    };
+    const resp = await fetch(BIN_URL, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: {
+        'X-Master-Key': API_KEY,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(body)
     });
-    return resp.ok;
+    if (!resp.ok) {
+      console.error('saveToSheet failed:', resp.status, await resp.text());
+      return false;
+    }
+    return true;
   } catch(e) {
     console.error('saveToSheet error:', e);
     return false;
   }
-}
-
-// Fetches a fresh access token from the local Hermes-managed token server
-// Run: python3 token_server.py (in the same directory as this HTML)
-async function getGoogleToken() {
-  const stored = localStorage.getItem('gapi_access_token');
-  const storedExpiry = localStorage.getItem('gapi_token_expiry');
-  // Use cached token if not expired (with 60s buffer)
-  if (stored && storedExpiry && Date.now() < parseInt(storedExpiry)) {
-    return stored;
-  }
-  // Fetch fresh token from local token server
-  const resp = await fetch('http://localhost:18765/token');
-  if (!resp.ok) throw new Error('Failed to get Google token from local server');
-  const token = await resp.text();
-  // Cache for 55 minutes (tokens expire in 1 hour)
-  localStorage.setItem('gapi_access_token', token);
-  localStorage.setItem('gapi_token_expiry', String(Date.now() + 55 * 60 * 1000));
-  return token;
 }
 
 
