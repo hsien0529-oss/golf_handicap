@@ -1237,7 +1237,14 @@ function confirmPlayers() {
           <span class="pair-none">尚無記錄</span>
         </div>`;
       }
-      // 讓桿者一律放前面，永遠顯示「讓」
+      // 平讓（沒有 giver）：保持原順序，顯示「平讓」
+      if (!r.data.giver) {
+        return `<div class="pair-row">
+          <span class="pair-name">${pname(r.a)} vs ${pname(r.b)}</span>
+          <span class="pair-stroke">平讓 ${fmtCond(r.data.cond)}</span>
+        </div>`;
+      }
+      // 有讓桿：讓桿者一律放前面，永遠顯示「讓」
       const giver    = r.data.giver;
       const receiver = (giver === r.a) ? r.b : r.a;
       return `<div class="pair-row">
