@@ -71,6 +71,11 @@ tr.no-data td{color:#999;text-align:center;padding:20px}
 .form-row{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap}
 .form-row select,.form-row input{padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem}
 .form-row label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.stroke-stepper{display:inline-flex;align-items:center;gap:4px}
+.stroke-stepper input{width:54px;text-align:center;font-size:1rem;font-weight:bold}
+.stepper-btn{width:36px;height:36px;border:1px solid #2d7d46;background:#fff;color:#2d7d46;border-radius:6px;font-size:1.2rem;font-weight:bold;cursor:pointer;line-height:1;padding:0}
+.stepper-btn:hover{background:#2d7d46;color:#fff}
+.stepper-btn:active{background:#1b5e20}
 
 /* History */
 .history-item{padding:10px 0;border-bottom:1px solid #eee}
@@ -1365,9 +1370,15 @@ function renderEdit() {
   <h2>✏️ 編輯讓桿</h2>
   <p style="margin-bottom:10px;color:#555">選擇兩位球員後修改讓桿值：</p>
   <div class="form-row">
-    <label>球員 A：<select id="edit-a" onchange="updateEditPreview()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
-    <label>球員 B：<select id="edit-b" onchange="updateEditPreview()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
-    <label>讓桿值：<input type="number" id="edit-val" value="0" min="-20" max="20" style="width:60px" onchange="updateEditPreview()"></label>
+    <label>球員 A：<select id="edit-a" onchange="onPlayerChange()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
+    <label>球員 B：<select id="edit-b" onchange="onPlayerChange()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
+    <label>讓桿值：
+      <span class="stroke-stepper">
+        <button type="button" class="stepper-btn" onclick="adjustStroke(-1)">−</button>
+        <input type="number" id="edit-val" value="0" min="-20" max="20" oninput="updateEditPreview()">
+        <button type="button" class="stepper-btn" onclick="adjustStroke(1)">＋</button>
+      </span>
+    </label>
     <label>備註：<input type="text" id="edit-note" placeholder="來源說明"></label>
   </div>
   <div id="edit-preview" style="margin:10px 0;padding:10px;background:#f1f8f2;border-radius:6px;font-size:0.95rem"></div>
@@ -1406,6 +1417,35 @@ function login(pid) {
   navigate('edit');
 }
 
+// 選完球員後自動帶入該配對既有的讓桿值
+function onPlayerChange() {
+  const a = document.getElementById('edit-a').value;
+  const b = document.getElementById('edit-b').value;
+  const valInput = document.getElementById('edit-val');
+  if (a !== b) {
+    // 從 PAIRS 找該配對 → 用 a 視角的數字
+    const pair = PAIRS.find(p => (p.a===a && p.b===b) || (p.a===b && p.b===a));
+    if (pair) {
+      // 統一以「edit-a 的視角」顯示：value 表示 a 對 b 的關係
+      // 原 PAIRS 是 a 視角 → 直接用；如果順序顛倒 → 取負號
+      const v = (pair.a === a) ? pair.value : -pair.value;
+      valInput.value = v;
+    } else {
+      valInput.value = 0;
+    }
+  }
+  updateEditPreview();
+}
+
+// ± 按鈕
+function adjustStroke(delta) {
+  const valInput = document.getElementById('edit-val');
+  let v = (parseInt(valInput.value) || 0) + delta;
+  v = Math.max(-20, Math.min(20, v));
+  valInput.value = v;
+  updateEditPreview();
+}
+
 function updateEditPreview() {
   const a = document.getElementById('edit-a').value;
   const b = document.getElementById('edit-b').value;
@@ -1414,7 +1454,7 @@ function updateEditPreview() {
   if (!preview) return;
   if (a===b) { preview.textContent='請選擇不同球員'; preview.style.color='#c62828'; return; }
   const r = lookup(a, b);
-  const oldStr = r ? (r.giver===a ? `讓 ${r.strokes}` : `受 ${r.strokes}`) : '尚無記錄';
+  const oldStr = r ? (r.giver===a ? `${pname(a)} 讓 ${pname(b)} ${r.strokes} 桿` : `${pname(b)} 讓 ${pname(a)} ${r.strokes} 桿`) : '尚無記錄';
   const newStr = v<0 ? `${pname(a)} 讓 ${pname(b)} ${Math.abs(v)} 桿` : v>0 ? `${pname(b)} 讓 ${pname(a)} ${v} 桿` : '平讓';
   preview.innerHTML = `目前：${oldStr} → 儲存後：<strong>${newStr}</strong>`;
   preview.style.color='#222';
