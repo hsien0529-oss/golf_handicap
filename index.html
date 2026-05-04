@@ -1439,7 +1439,7 @@ async function savePair() {
     PAIRS.push(newPair);
     pushHistory('新增讓桿', `${fmtPair(a,b,v)}${fmtCond(newPair.condition)}`);
   }
-  saveData();
+  await saveData();
   alert('儲存成功！');
   navigate('edit');
 }
@@ -1513,7 +1513,52 @@ async function init() {
     }
   }
   render();
+  startAutoSync();
 }
+
+// ====== 自動同步：每 30 秒檢查 JSONBin 是否有更新 ======
+let _isSaving = false;
+let _lastSyncedSnapshot = '';
+
+// 包一層：本地存檔時設旗標，避免同步覆蓋
+const _origSaveData = saveData;
+saveData = async function() {
+  _isSaving = true;
+  try {
+    await _origSaveData();
+    _lastSyncedSnapshot = JSON.stringify(PAIRS);
+  } finally {
+    _isSaving = false;
+  }
+};
+
+function startAutoSync() {
+  _lastSyncedSnapshot = JSON.stringify(PAIRS);
+  setInterval(async () => {
+    // 1. 自己正在存 → 跳過
+    if (_isSaving) return;
+    // 2. 在編輯頁有未存的輸入 → 跳過（避免清掉輸入到一半的內容）
+    if (currentPage === 'edit' && document.getElementById('edit-val')) return;
+
+    try {
+      const fresh = await loadFromSheet();
+      if (fresh.length === 0) return;
+      const freshSnap = JSON.stringify(fresh);
+      // 跟上次同步的內容一樣 → 沒變化
+      if (freshSnap === _lastSyncedSnapshot) return;
+      // 有更新 → 套用 + 重畫
+      PAIRS.length = 0;
+      fresh.forEach(p => PAIRS.push(p));
+      localStorage.setItem('golf_pairs', JSON.stringify(PAIRS));
+      _lastSyncedSnapshot = freshSnap;
+      console.log('[autoSync] 偵測到雲端更新，已重新渲染');
+      render();
+    } catch (e) {
+      console.warn('[autoSync] 同步失敗:', e.message);
+    }
+  }, 30000);
+}
+
 init();
 </script>
 </body>
