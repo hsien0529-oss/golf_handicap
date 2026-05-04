@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>好爸爸高球隊 讓桿系統</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#222}
+header{background:#2d7d46;padding:12px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+header .logo{color:#fff;font-size:1.3rem;font-weight:bold;text-decoration:none}
+header nav{display:flex;gap:16px;flex-wrap:wrap}
+header nav a{color:#c8e6c9;text-decoration:none;font-size:0.95rem}
+header nav a:hover{color:#fff}
+header nav a.active{color:#fff;font-weight:bold}
+.editor-badge{color:#a5d6a7;font-size:0.85rem}
+.editor-badge a{color:#fff;text-decoration:none}
+main{max-width:900px;margin:24px auto;padding:0 16px}
+
+/* Tab nav */
+.tab-nav{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.tab-nav button{padding:8px 18px;border:1px solid #2d7d46;background:#fff;color:#2d7d46;cursor:pointer;border-radius:6px;font-size:0.9rem}
+.tab-nav button:hover{background:#e8f5e9}
+.tab-nav button.active{background:#2d7d46;color:#fff}
+
+/* Player selector */
+.selector-grid{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.selector-grid label{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border:1px solid #ccc;border-radius:20px;cursor:pointer;font-size:0.9rem}
+.selector-grid label:hover{border-color:#2d7d46}
+.selector-grid input{accent-color:#2d7d46}
+
+/* Cards */
+.card{background:#fff;border-radius:10px;padding:20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.card h2{margin-bottom:12px;font-size:1.1rem;color:#2d7d46;border-bottom:2px solid #a5d6a7;padding-bottom:6px}
+
+/* Table */
+table{width:100%;border-collapse:collapse;margin-top:10px}
+th,td{padding:8px 12px;text-align:left;border-bottom:1px solid #eee;font-size:0.9rem}
+th{background:#f1f8f2;color:#2d7d46;font-weight:600}
+tr:hover{background:#fafafa}
+tr.no-data td{color:#999;text-align:center;padding:20px}
+
+/* Matrix */
+.matrix-wrap{overflow-x:auto}
+.matrix-table{border-collapse:collapse;font-size:0.78rem}
+.matrix-table th,.matrix-table td{padding:5px 8px;text-align:center;border:1px solid #ddd;min-width:44px}
+.matrix-table th{background:#e8f5e9;color:#2d7d46}
+.matrix-table .h{background:#f1f8f2;font-weight:600}
+.matrix-table .讓{color:#e53935;font-weight:bold}
+.matrix-table .受{color:#1565c0}
+.matrix-table .平{color:#888}
+
+/* Group result */
+.group-result{margin-top:16px}
+.pair-row{display:flex;gap:12px;padding:10px 14px;border-bottom:1px solid #eee;align-items:center;font-size:0.92rem}
+.pair-row:last-child{border-bottom:none}
+.pair-name{min-width:120px;font-weight:600;color:#333}
+.pair-stroke{color:#2d7d46;font-weight:bold;font-size:1rem}
+.pair-none{color:#999;font-size:0.85rem}
+
+/* Buttons */
+.btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem}
+.btn-primary{background:#2d7d46;color:#fff}
+.btn-primary:hover{background:#1b5e20}
+.btn-danger{background:#c62828;color:#fff}
+.btn-danger:hover{background:#b71c1c}
+.btn-secondary{background:#eee;color:#333}
+.btn-secondary:hover{background:#ddd}
+
+/* Form */
+.form-row{display:flex;gap:10px;margin:10px 0;flex-wrap:wrap}
+.form-row select,.form-row input{padding:7px 10px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem}
+.form-row label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+
+/* History */
+.history-item{padding:10px 0;border-bottom:1px solid #eee}
+.history-item:last-child{border-bottom:none}
+.history-ts{color:#999;font-size:0.78rem}
+.history-title{font-weight:600;color:#2d7d46;margin:2px 0}
+.history-desc{font-size:0.88rem;color:#555}
+
+/* Editor panel */
+.edit-section{margin-top:20px}
+.delete-btn{color:#c62828;background:none;border:none;cursor:pointer;font-size:0.85rem;padding:2px 6px}
+.delete-btn:hover{background:#ffebee;border-radius:4px}
+
+/* Responsive */
+@media(max-width:600px){
+  .matrix-table{font-size:0.7rem}
+  .matrix-table th,.matrix-table td{padding:3px 4px;min-width:36px}
+}
+</style>
+</head>
+<body>
+<header>
+  <a href="#" class="logo" onclick="navigate('home')">⛳ 好爸爸高球隊</a>
+  <nav>
+    <a href="#" onclick="navigate('home')" id="nav-home">首頁</a>
+    <a href="#" onclick="navigate('matrix')" id="nav-matrix">矩陣</a>
+    <a href="#" onclick="navigate('history')" id="nav-history">紀錄</a>
+    <a href="#" onclick="navigate('edit')" id="nav-edit">編輯</a>
+    <span class="editor-badge" id="editor-badge" style="display:none">編輯者：<span id="editor-name"></span> <a href="#" onclick="logout()">切換</a></span>
+  </nav>
+</header>
+<main id="app"></main>
+
+<script>
+// ====== DATA ======
+const PLAYERS = [
+  {
+    "id": "Wii",
+    "name": "Wii",
+    "aliases": [
+      "Wii",
+      "wii",
+      "暐"
+    ]
+  },
+  {
+    "id": "湧",
+    "name": "棋湧",
+    "aliases": [
+      "湧",
+      "棋湧"
+    ]
+  },
+  {
+    "id": "史",
+    "name": "史坦利",
+    "aliases": [
+      "史",
+      "史坦利"
+    ]
+  },
+  {
+    "id": "東",
+    "name": "東林",
+    "aliases": [
+      "東",
+      "東林"
+    ]
+  },
+  {
+    "id": "陽",
+    "name": "琮陽",
+    "aliases": [
+      "陽",
+      "琮陽"
+    ]
+  },
+  {
+    "id": "傑",
+    "name": "裕傑",
+    "aliases": [
+      "傑",
+      "裕傑"
+    ]
+  },
+  {
+    "id": "雨",
+    "name": "小雨",
+    "aliases": [
+      "雨",
+      "小雨"
+    ]
+  },
+  {
+    "id": "岳",
+    "name": "文岳",
+    "aliases": [
+      "岳",
+      "文岳"
+    ]
+  },
+  {
+    "id": "宏",
+    "name": "元宏",
+    "aliases": [
+      "宏",
+      "元宏"
+    ]
+  },
+  {
+    "id": "Ben",
+    "name": "Ben",
+    "aliases": [
+      "Ben",
+      "ben"
+    ]
+  },
+  {
+    "id": "賢",
+    "name": "書賢",
+    "aliases": [
+      "賢",
+      "書賢"
+    ]
+  },
+  {
+    "id": "富",
+    "name": "連富",
+    "aliases": [
+      "富",
+      "連富"
+    ]
+  },
+  {
+    "id": "鈞",
+    "name": "湧鈞",
+    "aliases": [
+      "鈞",
+      "均",
+      "湧鈞"
+    ]
+  },
+  {
+    "id": "Gary",
+    "name": "Gary",
+    "aliases": [
+      "Gary",
+      "gary"
+    ]
+  },
+  {
+    "id": "M",
+    "name": "Mason",
+    "aliases": [
+      "M",
+      "m",
+      "Mason",
+      "mason"
+    ]
+  },
+  {
+    "id": "中美",
+    "name": "中美",
+    "aliases": [
+      "中美",
+      "美"
+    ]
+  },
+  {
+    "id": "Tim",
+    "name": "Tim",
+    "aliases": [
+      "Tim",
+      "T"
+    ]
+  },
+  {
+    "id": "B",
+    "name": "Bruce",
+    "aliases": [
+      "B",
+      "b",
+      "Bruce",
+      "bruce"
+    ]
+  },
+  {
+    "id": "夢露",
+    "name": "夢露",
+    "aliases": [
+      "夢露",
+      "夢",
+      "露"
+    ]
+  },
+  {
+    "id": "朱",
+    "name": "朱老師",
+    "aliases": [
+      "朱",
+      "朱老師"
+    ]
+  },
+  {
+    "id": "清",
+    "name": "曹清",
+    "aliases": [
+      "清",
+      "曹清"
+    ]
+  },
+  {
+    "id": "彰",
+    "name": "原彰",
+    "aliases": [
+      "彰",
+      "原彰"
+    ]
+  },
+  {
+    "id": "Jacky",
+    "name": "Jacky",
+    "aliases": [
+      "Jacky"
+    ]
+  }
+];
+const PAIRS = [
+  {
+    "a": "Wii",
+    "b": "陽",
+    "value": 0,
+    "condition": {},
+    "source": "Wii/陽 0"
+  },
+  {
+    "a": "Wii",
+    "b": "富",
+    "value": -4,
+    "condition": {},
+    "source": "Wii/富-4"
+  },
+  {
+    "a": "Wii",
+    "b": "雨",
+    "value": -1,
+    "condition": {},
+    "source": "Wii/雨 -1"
+  },
+  {
+    "a": "湧",
+    "b": "M",
+    "value": -2,
+    "condition": {},
+    "source": "湧/mason-2"
+  },
+  {
+    "a": "湧",
+    "b": "Wii",
+    "value": -4,
+    "condition": {},
+    "source": "湧/wii -4"
+  },
+  {
+    "a": "湧",
+    "b": "彰",
+    "value": -7,
+    "condition": {},
+    "source": "湧/彰 -7"
+  },
+  {
+    "a": "湧",
+    "b": "Tim",
+    "value": -1,
+    "condition": {},
+    "source": "湧/T-1"
+  },
+  {
+    "a": "湧",
+    "b": "岳",
+    "value": -8,
+    "condition": {},
+    "source": "湧/岳-8"
+  },
+  {
+    "a": "湧",
+    "b": "富",
+    "value": -7,
+    "condition": {},
+    "source": "湧/富-7"
+  },
+  {
+    "a": "湧",
+    "b": "中美",
+    "value": -5,
+    "condition": {},
+    "source": "湧/中美-5"
+  },
+  {
+    "a": "湧",
+    "b": "史",
+    "value": -1,
+    "condition": {},
+    "source": "湧/史-2"
+  },
+  {
+    "a": "湧",
+    "b": "B",
+    "value": -4,
+    "condition": {},
+    "source": "湧/b-4"
+  },
+  {
+    "a": "湧",
+    "b": "陽",
+    "value": -3,
+    "condition": {},
+    "source": "湧/陽-3"
+  },
+  {
+    "a": "湧",
+    "b": "朱",
+    "value": -3,
+    "condition": {},
+    "source": "湧/朱 -3"
+  },
+  {
+    "a": "湧",
+    "b": "夢露",
+    "value": -6,
+    "condition": {
+      "white_tee": -11
+    },
+    "source": "湧/夢露-6（白-11）"
+  },
+  {
+    "a": "湧",
+    "b": "賢",
+    "value": -2,
+    "condition": {},
+    "source": "湧/賢-2"
+  },
+  {
+    "a": "湧",
+    "b": "清",
+    "value": -5,
+    "condition": {},
+    "source": "湧/清-5"
+  },
+  {
+    "a": "湧",
+    "b": "傑",
+    "value": -2,
+    "condition": {},
+    "source": "湧/傑-3"
+  },
+  {
+    "a": "史",
+    "b": "Wii",
+    "value": -2,
+    "condition": {},
+    "source": "史/Wii -2"
+  },
+  {
+    "a": "史",
+    "b": "岳",
+    "value": -4,
+    "condition": {},
+    "source": "史/文岳-4"
+  },
+  {
+    "a": "史",
+    "b": "中美",
+    "value": -2,
+    "condition": {},
+    "source": "史/美 -2"
+  },
+  {
+    "a": "史",
+    "b": "朱",
+    "value": -1,
+    "condition": {},
+    "source": "史/朱-1"
+  },
+  {
+    "a": "東",
+    "b": "Tim",
+    "value": -4,
+    "condition": {},
+    "source": "東/Tim -4"
+  },
+  {
+    "a": "東",
+    "b": "湧",
+    "value": -7,
+    "condition": {},
+    "source": "東/湧-7"
+  },
+  {
+    "a": "東",
+    "b": "史",
+    "value": -6,
+    "condition": {},
+    "source": "東/史 -6"
+  },
+  {
+    "a": "東",
+    "b": "賢",
+    "value": -4,
+    "condition": {},
+    "source": "東/賢 -4"
+  },
+  {
+    "a": "東",
+    "b": "Ben",
+    "value": -4,
+    "condition": {},
+    "source": "東/Ben -4"
+  },
+  {
+    "a": "東",
+    "b": "Wii",
+    "value": 0,
+    "condition": {},
+    "source": "東/Wii 0"
+  },
+  {
+    "a": "東",
+    "b": "岳",
+    "value": -3,
+    "condition": {},
+    "source": "東/文岳-3"
+  },
+  {
+    "a": "東",
+    "b": "傑",
+    "value": -3,
+    "condition": {},
+    "source": "東/傑 -3"
+  },
+  {
+    "a": "東",
+    "b": "陽",
+    "value": -6,
+    "condition": {},
+    "source": "東/陽 -6"
+  },
+  {
+    "a": "東",
+    "b": "鈞",
+    "value": -12,
+    "condition": {},
+    "source": "東/鈞-12"
+  },
+  {
+    "a": "東",
+    "b": "雨",
+    "value": -6,
+    "condition": {},
+    "source": "東/雨-6"
+  },
+  {
+    "a": "東",
+    "b": "富",
+    "value": -6,
+    "condition": {},
+    "source": "東/富 -6"
+  },
+  {
+    "a": "陽",
+    "b": "鈞",
+    "value": -9,
+    "condition": {},
+    "source": "陽/鈞-9"
+  },
+  {
+    "a": "陽",
+    "b": "Jacky",
+    "value": -6,
+    "condition": {},
+    "source": "陽/Jacky-6"
+  },
+  {
+    "a": "陽",
+    "b": "中美",
+    "value": -3,
+    "condition": {},
+    "source": "陽/中美-3"
+  },
+  {
+    "a": "陽",
+    "b": "富",
+    "value": -4,
+    "condition": {},
+    "source": "陽/富-4"
+  },
+  {
+    "a": "陽",
+    "b": "Gary",
+    "value": -2,
+    "condition": {},
+    "source": "陽/gary -2"
+  },
+  {
+    "a": "陽",
+    "b": "朱",
+    "value": -2,
+    "condition": {},
+    "source": "陽/朱-2"
+  },
+  {
+    "a": "陽",
+    "b": "M",
+    "value": -2,
+    "condition": {},
+    "source": "陽/M-2"
+  },
+  {
+    "a": "陽",
+    "b": "岳",
+    "value": -5,
+    "condition": {},
+    "source": "陽/岳-5"
+  },
+  {
+    "a": "陽",
+    "b": "夢露",
+    "value": -4,
+    "condition": {},
+    "source": "陽/夢-4"
+  },
+  {
+    "a": "陽",
+    "b": "清",
+    "value": -5,
+    "condition": {},
+    "source": "陽/清-5"
+  },
+  {
+    "a": "陽",
+    "b": "史",
+    "value": -1,
+    "condition": {},
+    "source": "陽/史-1"
+  },
+  {
+    "a": "傑",
+    "b": "史",
+    "value": -7,
+    "condition": {},
+    "source": "傑/史-7"
+  },
+  {
+    "a": "傑",
+    "b": "Wii",
+    "value": -2,
+    "condition": {},
+    "source": "傑/Wii-2"
+  },
+  {
+    "a": "傑",
+    "b": "鈞",
+    "value": -8,
+    "condition": {},
+    "source": "傑/均-8"
+  },
+  {
+    "a": "傑",
+    "b": "岳",
+    "value": -4,
+    "condition": {},
+    "source": "傑/岳-4"
+  },
+  {
+    "a": "傑",
+    "b": "富",
+    "value": -4,
+    "condition": {},
+    "source": "傑/富-4"
+  },
+  {
+    "a": "傑",
+    "b": "Gary",
+    "value": -1,
+    "condition": {},
+    "source": "傑/Gary-1"
+  },
+  {
+    "a": "傑",
+    "b": "陽",
+    "value": -4,
+    "condition": {},
+    "source": "傑/陽-4"
+  },
+  {
+    "a": "傑",
+    "b": "中美",
+    "value": -4,
+    "condition": {},
+    "source": "傑/中美-4"
+  },
+  {
+    "a": "雨",
+    "b": "湧",
+    "value": 0,
+    "condition": {},
+    "source": "雨/湧-0"
+  },
+  {
+    "a": "雨",
+    "b": "彰",
+    "value": -4,
+    "condition": {},
+    "source": "雨/彰-4"
+  },
+  {
+    "a": "雨",
+    "b": "Gary",
+    "value": -5,
+    "condition": {},
+    "source": "雨/Gary -5"
+  },
+  {
+    "a": "雨",
+    "b": "鈞",
+    "value": -9,
+    "condition": {},
+    "source": "雨/鈞 -9"
+  },
+  {
+    "a": "雨",
+    "b": "中美",
+    "value": -5,
+    "condition": {},
+    "source": "雨/中美 -5"
+  },
+  {
+    "a": "雨",
+    "b": "富",
+    "value": -3,
+    "condition": {},
+    "source": "雨/富 -3"
+  },
+  {
+    "a": "雨",
+    "b": "傑",
+    "value": 0,
+    "condition": {},
+    "source": "雨/傑 0"
+  },
+  {
+    "a": "雨",
+    "b": "史",
+    "value": -5,
+    "condition": {},
+    "source": "雨/史 -5"
+  },
+  {
+    "a": "雨",
+    "b": "朱",
+    "value": -1,
+    "condition": {},
+    "source": "雨/朱 -1"
+  },
+  {
+    "a": "雨",
+    "b": "夢露",
+    "value": 0,
+    "condition": {
+      "white_tee": -8
+    },
+    "source": "雨/夢 0白 -8"
+  },
+  {
+    "a": "雨",
+    "b": "清",
+    "value": -2,
+    "condition": {},
+    "source": "雨/清 -2"
+  },
+  {
+    "a": "雨",
+    "b": "賢",
+    "value": -1,
+    "condition": {},
+    "source": "雨/賢 -1"
+  },
+  {
+    "a": "雨",
+    "b": "岳",
+    "value": -3,
+    "condition": {},
+    "source": "雨/岳 -3"
+  },
+  {
+    "a": "雨",
+    "b": "M",
+    "value": -3,
+    "condition": {},
+    "source": "雨/m -3"
+  },
+  {
+    "a": "雨",
+    "b": "陽",
+    "value": -3,
+    "condition": {},
+    "source": "雨/陽 -3"
+  },
+  {
+    "a": "岳",
+    "b": "鈞",
+    "value": -6,
+    "condition": {},
+    "source": "岳/鈞 -6"
+  },
+  {
+    "a": "岳",
+    "b": "Gary",
+    "value": -1,
+    "condition": {},
+    "source": "岳/Gary-1"
+  },
+  {
+    "a": "岳",
+    "b": "Wii",
+    "value": -6,
+    "condition": {},
+    "source": "岳/Wii-6"
+  },
+  {
+    "a": "岳",
+    "b": "清",
+    "value": -1,
+    "condition": {},
+    "source": "岳/清-1"
+  },
+  {
+    "a": "宏",
+    "b": "雨",
+    "value": -2,
+    "condition": {
+      "holes": 9
+    },
+    "source": "宏/ 雨 9洞-2"
+  },
+  {
+    "a": "宏",
+    "b": "湧",
+    "value": -8,
+    "condition": {},
+    "source": "宏/湧-8"
+  },
+  {
+    "a": "宏",
+    "b": "東",
+    "value": -6,
+    "condition": {},
+    "source": "宏/東-6"
+  },
+  {
+    "a": "宏",
+    "b": "史",
+    "value": -10,
+    "condition": {},
+    "source": "宏/史 -10"
+  },
+  {
+    "a": "宏",
+    "b": "賢",
+    "value": -4,
+    "condition": {},
+    "source": "宏/賢-4"
+  },
+  {
+    "a": "宏",
+    "b": "Wii",
+    "value": -11,
+    "condition": {},
+    "source": "宏/wii-11"
+  },
+  {
+    "a": "宏",
+    "b": "傑",
+    "value": -6,
+    "condition": {},
+    "source": "宏/傑-6"
+  },
+  {
+    "a": "宏",
+    "b": "陽",
+    "value": -11,
+    "condition": {},
+    "source": "宏/陽-11"
+  },
+  {
+    "a": "宏",
+    "b": "岳",
+    "value": -10,
+    "condition": {},
+    "source": "宏/岳-10"
+  },
+  {
+    "a": "宏",
+    "b": "B",
+    "value": -7,
+    "condition": {},
+    "source": "宏/B-7"
+  },
+  {
+    "a": "宏",
+    "b": "中美",
+    "value": -6,
+    "condition": {},
+    "source": "宏/中美 -6"
+  },
+  {
+    "a": "宏",
+    "b": "富",
+    "value": -13,
+    "condition": {},
+    "source": "宏/富-13"
+  },
+  {
+    "a": "宏",
+    "b": "Gary",
+    "value": -5,
+    "condition": {},
+    "source": "宏/Gary-5"
+  },
+  {
+    "a": "Ben",
+    "b": "陽",
+    "value": -3,
+    "condition": {},
+    "source": "Ben/陽-3"
+  },
+  {
+    "a": "Ben",
+    "b": "史",
+    "value": -3,
+    "condition": {},
+    "source": "Ben/史-3"
+  },
+  {
+    "a": "Ben",
+    "b": "岳",
+    "value": -2,
+    "condition": {},
+    "source": "Ben/岳-2"
+  },
+  {
+    "a": "Ben",
+    "b": "Wii",
+    "value": -2,
+    "condition": {},
+    "source": "Ben/Wii-2"
+  },
+  {
+    "a": "Ben",
+    "b": "富",
+    "value": -1,
+    "condition": {},
+    "source": "Ben/富-1"
+  },
+  {
+    "a": "Ben",
+    "b": "夢露",
+    "value": -9,
+    "condition": {},
+    "source": "Ben/夢-9"
+  },
+  {
+    "a": "賢",
+    "b": "Ben",
+    "value": 0,
+    "condition": {},
+    "source": "manual: Ben/賢 平讓 (使用者確認)"
+  },
+  {
+    "a": "Ben",
+    "b": "雨",
+    "value": -2,
+    "condition": {},
+    "source": "Ben/雨-2"
+  },
+  {
+    "a": "賢",
+    "b": "Wii",
+    "value": -5,
+    "condition": {},
+    "source": "賢/Wii -5"
+  },
+  {
+    "a": "賢",
+    "b": "陽",
+    "value": -7,
+    "condition": {},
+    "source": "賢/陽 -7"
+  },
+  {
+    "a": "賢",
+    "b": "史",
+    "value": -5,
+    "condition": {},
+    "source": "賢/史-5"
+  },
+  {
+    "a": "賢",
+    "b": "傑",
+    "value": -1,
+    "condition": {},
+    "source": "賢/傑-1"
+  },
+  {
+    "a": "賢",
+    "b": "岳",
+    "value": -5,
+    "condition": {},
+    "source": "賢/岳-5"
+  },
+  {
+    "a": "賢",
+    "b": "富",
+    "value": -4,
+    "condition": {},
+    "source": "賢/富-4"
+  },
+  {
+    "a": "賢",
+    "b": "M",
+    "value": -4,
+    "condition": {},
+    "source": "賢/M-4"
+  },
+  {
+    "a": "賢",
+    "b": "B",
+    "value": -10,
+    "condition": {},
+    "source": "賢/bruce-10"
+  },
+  {
+    "a": "富",
+    "b": "清",
+    "value": -2,
+    "condition": {},
+    "source": "富/清-2"
+  },
+  {
+    "a": "富",
+    "b": "鈞",
+    "value": -10,
+    "condition": {},
+    "source": "富/鈞-10"
+  },
+  {
+    "a": "富",
+    "b": "夢露",
+    "value": -10,
+    "condition": {},
+    "source": "富/露-10"
+  },
+  {
+    "a": "富",
+    "b": "史",
+    "value": -2,
+    "condition": {},
+    "source": "富/史-2"
+  },
+  {
+    "a": "富",
+    "b": "岳",
+    "value": 0,
+    "condition": {},
+    "source": "富/岳-0"
+  },
+  {
+    "a": "富",
+    "b": "中美",
+    "value": -4,
+    "condition": {},
+    "source": "富/中美-4"
+  }
+];
+</script>
+
+<script>
+// ====== STATE ======
+let currentPage = 'home';
+let selectedPlayers = [];
+let editor = localStorage.getItem('golf_editor') || null;
+
+// ====== HELPERS ======
+function pname(id) {
+  const p = PLAYERS.find(p=>p.id===id);
+  return p ? p.name : id;
+}
+
+function lookup(a, b) {
+  for (const p of PAIRS) {
+    if (p.a === a && p.b === b) {
+      const v = p.value;
+      if (v < 0) return {giver:a, receiver:b, strokes:Math.abs(v), cond:p.condition||{}};
+      else if (v > 0) return {giver:b, receiver:a, strokes:Math.abs(v), cond:p.condition||{}};
+      else return {giver:null, receiver:null, strokes:0, cond:p.condition||{}};
+    }
+    if (p.a === b && p.b === a) {
+      const v = p.value;
+      if (v < 0) return {giver:b, receiver:a, strokes:Math.abs(v), cond:p.condition||{}};
+      else if (v > 0) return {giver:a, receiver:b, strokes:Math.abs(v), cond:p.condition||{}};
+      else return {giver:null, receiver:null, strokes:0, cond:p.condition||{}};
+    }
+  }
+  return null;
+}
+
+function fmtCond(c) {
+  if (!c || (Object.keys(c).length===0)) return '';
+  const bits = [];
+  if (c.holes) bits.push(c.holes+'洞');
+  if (c.white_tee) bits.push('白T:'+c.white_tee);
+  return '（'+bits.join('、')+'）';
+}
+
+function fmtPair(a, b, value) {
+  if (value < 0) return `${pname(a)} 讓 ${pname(b)} ${Math.abs(value)} 桿`;
+  if (value > 0) return `${pname(b)} 讓 ${pname(a)} ${Math.abs(value)} 桿`;
+  return `${pname(a)} 與 ${pname(b)} 平讓`;
+}
+
+function navigate(page) {
+  if (currentPage === 'home' && page !== 'home') {
+    // Leaving home: clear selection state
+    selectedPlayers = [];
+    const area = document.getElementById('group-result-area');
+    if (area) area.innerHTML = '';
+  }
+  currentPage = page;
+  document.querySelectorAll('header nav a').forEach(a=>a.classList.remove('active'));
+  const el = document.getElementById('nav-'+page);
+  if (el) el.classList.add('active');
+  render();
+}
+
+function logout() {
+  editor = null;
+  localStorage.removeItem('golf_editor');
+  navigate('home');
+}
+
+function render() {
+  const app = document.getElementById('app');
+  document.getElementById('editor-badge').style.display = editor ? 'inline' : 'none';
+  document.getElementById('editor-name').textContent = editor || '';
+
+  switch(currentPage) {
+    case 'home': app.innerHTML = renderHome(); break;
+    case 'matrix': app.innerHTML = renderMatrix(); break;
+    case 'history': renderHistory(); break;
+    case 'edit': app.innerHTML = renderEdit(); break;
+    default: app.innerHTML = renderHome();
+  }
+  attachEvents();
+}
+
+// ====== PAGES ======
+function renderHome() {
+  return `
+<div class="card">
+  <h2>🏠 首頁</h2>
+  <p style="margin-bottom:12px;color:#555">選擇球員以查看兩兩讓桿：</p>
+  <div class="selector-grid">
+    ${PLAYERS.map(p=>`
+    <label>
+      <input type="checkbox" value="${p.id}" onchange="togglePlayer(this.value, this.checked)">
+      ${p.name}
+    </label>`).join('')}
+  </div>
+  <button id="confirm-btn" class="btn btn-primary" style="margin-top:14px;font-size:1rem;padding:10px 24px;border-radius:8px;opacity:0.5;cursor:not-allowed" onclick="confirmPlayers()" disabled>
+    確認顯示讓桿結果
+  </button>
+  <div id="group-result-area" style="margin-top:14px;display:none"></div>
+</div>`;
+}
+
+function getPairs(ids) {
+  const result = [];
+  for (let i=0;i<ids.length;i++) {
+    for (let j=i+1;j<ids.length;j++) {
+      const a=ids[i], b=ids[j];
+      const r = lookup(a, b);
+      result.push({a, b, data:r});
+    }
+  }
+  return result;
+}
+
+function confirmPlayers() {
+  if (selectedPlayers.length < 2) return;
+  const area = document.getElementById('group-result-area');
+  if (!area) return;
+  area.style.display = 'block';
+  area.innerHTML = `
+  <div class="group-result">
+    ${getPairs(selectedPlayers).map(r=>`
+    <div class="pair-row">
+      <span class="pair-name">${pname(r.a)} vs ${pname(r.b)}</span>
+      ${r.data ? `<span class="pair-stroke">${r.data.giver===r.a ? '讓' : '受'} ${r.data.strokes} 桿 ${fmtCond(r.data.cond)}</span>` : `<span class="pair-none">尚無記錄</span>`}
+    </div>`).join('')}
+  </div>`;
+}
+
+function togglePlayer(id, checked) {
+  if (checked) selectedPlayers.push(id);
+  else selectedPlayers = selectedPlayers.filter(x=>x!==id);
+
+  // Always clear result on any toggle (force re-confirm)
+  const area = document.getElementById('group-result-area');
+  if (area) {
+    area.innerHTML = '';
+    area.style.display = 'none';
+  }
+
+  // Update confirm button state
+  const btn = document.getElementById('confirm-btn');
+  if (btn) {
+    btn.disabled = selectedPlayers.length < 2;
+    btn.style.opacity = selectedPlayers.length < 2 ? '0.5' : '1';
+  }
+}
+
+function renderMatrix() {
+  const pids = PLAYERS.map(p=>p.id);
+  const grid = {};
+  pids.forEach(a=>{ grid[a]={}; pids.forEach(b=>{ grid[a][b]=null }); });
+  PAIRS.forEach(p=>{
+    const {a,b,value,condition} = p;
+    if (value<0) { grid[a][b]={t:'讓',v:Math.abs(value),c:condition}; grid[b][a]={t:'受',v:Math.abs(value),c:condition} }
+    else if (value>0) { grid[a][b]={t:'受',v:Math.abs(value),c:condition}; grid[b][a]={t:'讓',v:Math.abs(value),c:condition} }
+    else { grid[a][b]={t:'平',v:0,c:condition}; grid[b][a]={t:'平',v:0,c:condition} }
+  });
+
+  return `
+<div class="card">
+  <h2>📊 讓桿矩陣</h2>
+  <div class="matrix-wrap">
+    <table class="matrix-table">
+      <thead><tr><th></th>${pids.map(id=>`<th class="h">${pname(id)}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${pids.map(a=>`
+        <tr>
+          <th class="h">${pname(a)}</th>
+          ${pids.map(b=>{
+            if (a===b) return '<td>—</td>';
+            const cell = grid[a][b];
+            if (!cell) return '<td></td>';
+            const cls = cell.t;
+            const title = fmtCond(cell.c);
+            return `<td class="${cls}" title="${title}">${cell.t}${cell.v>0?cell.v:''}</td>`;
+          }).join('')}
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:10px;font-size:0.8rem;color:#888">讓=讓桿者 / 受=受讓者 / 平=平讓 | 紅色=讓、藍色=受、灰=平</p>
+</div>`;
+}
+
+function deleteHistory(idx) {
+  let history = JSON.parse(localStorage.getItem('golf_history') || '[]');
+  if (idx < 0 || idx >= history.length) return;
+  const entry = history[idx];
+
+  // 若有快照，还原 PAIRS
+  if (entry.pairsSnapshot) {
+    PAIRS.length = 0;
+    entry.pairsSnapshot.forEach(p => PAIRS.push(p));
+    saveData();
+  }
+
+  history.splice(idx, 1);
+  localStorage.setItem('golf_history', JSON.stringify(history));
+  renderHistory();
+}
+
+function renderHistory() {
+  let history = JSON.parse(localStorage.getItem('golf_history') || '[]');
+  if (history.length===0) {
+    document.getElementById('app').innerHTML = `<div class="card"><h2>📋 操作紀錄</h2><p style="color:#999">尚無任何操作記錄</p></div>`;
+    return;
+  }
+  document.getElementById('app').innerHTML = `
+<div class="card">
+  <h2>📋 操作紀錄（${history.length} 筆）</h2>
+  ${history.map((e,i)=>`
+  <div class="history-item">
+    <div class="history-ts">${e.ts}　${e.editor ? '📝 '+e.editor : ''}</div>
+    <div class="history-title">${e.title}</div>
+    <div class="history-desc">${e.desc}</div>
+    <button class="delete-btn" onclick="deleteHistory(${i})">✕ 刪除</button>
+  </div>`).join('')}
+</div>`;
+}
+
+
+function renderEdit() {
+  if (!editor) {
+    return `
+<div class="card">
+  <h2>🔐 選擇編輯者</h2>
+  <p style="margin-bottom:12px">請選擇操作者身份：</p>
+  <div class="selector-grid">
+    ${PLAYERS.map(p=>`
+    <button class="btn btn-primary" onclick="login('${p.id}')" style="padding:10px 20px;font-size:1rem;border-radius:8px">${p.name}</button>`).join('')}
+  </div>
+</div>`;
+  }
+  return `
+<div class="card">
+  <h2>✏️ 編輯讓桿</h2>
+  <p style="margin-bottom:10px;color:#555">選擇兩位球員後修改讓桿值：</p>
+  <div class="form-row">
+    <label>球員 A：<select id="edit-a" onchange="updateEditPreview()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
+    <label>球員 B：<select id="edit-b" onchange="updateEditPreview()">${PLAYERS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}</select></label>
+    <label>讓桿值：<input type="number" id="edit-val" value="0" min="-20" max="20" style="width:60px" onchange="updateEditPreview()"></label>
+    <label>備註：<input type="text" id="edit-note" placeholder="來源說明"></label>
+  </div>
+  <div id="edit-preview" style="margin:10px 0;padding:10px;background:#f1f8f2;border-radius:6px;font-size:0.95rem"></div>
+  <div class="form-row">
+    <button class="btn btn-primary" onclick="savePair()">儲存</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>📋 所有讓桿記錄（${PAIRS.length} 筆）</h2>
+  <table>
+    <thead><tr><th>球員 A</th><th>球員 B</th><th>讓桿</th><th>備註</th></tr></thead>
+    <tbody>
+      ${PAIRS.map((p,i)=>{
+        const r = lookup(p.a, p.b);
+        const giver = r ? r.giver : null;
+        const strokes = r ? r.strokes : 0;
+        const rel = giver===p.a ? '讓' : (giver ? '受' : '平');
+        return `
+      <tr>
+        <td>${pname(p.a)}</td>
+        <td>${pname(p.b)}</td>
+        <td style="color:${rel==='讓'?'#e53935':rel==='受'?'#1565c0':'#888'};font-weight:bold">${rel} ${strokes}</td>
+        <td style="color:#888;font-size:0.82rem">${p.source||''}</td>
+      </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+</div>`;
+}
+
+// ====== EDITOR ACTIONS ======
+function login(pid) {
+  editor = pid;
+  localStorage.setItem('golf_editor', pid);
+  navigate('edit');
+}
+
+function updateEditPreview() {
+  const a = document.getElementById('edit-a').value;
+  const b = document.getElementById('edit-b').value;
+  const v = parseInt(document.getElementById('edit-val').value)||0;
+  const preview = document.getElementById('edit-preview');
+  if (!preview) return;
+  if (a===b) { preview.textContent='請選擇不同球員'; preview.style.color='#c62828'; return; }
+  const r = lookup(a, b);
+  const oldStr = r ? (r.giver===a ? `讓 ${r.strokes}` : `受 ${r.strokes}`) : '尚無記錄';
+  const newStr = v<0 ? `${pname(a)} 讓 ${pname(b)} ${Math.abs(v)} 桿` : v>0 ? `${pname(b)} 讓 ${pname(a)} ${v} 桿` : '平讓';
+  preview.innerHTML = `目前：${oldStr} → 儲存後：<strong>${newStr}</strong>`;
+  preview.style.color='#222';
+}
+
+function savePair() {
+  const a = document.getElementById('edit-a').value;
+  const b = document.getElementById('edit-b').value;
+  const v = parseInt(document.getElementById('edit-val').value)||0;
+  const note = document.getElementById('edit-note').value;
+  if (a===b) { alert('請選擇不同球員'); return; }
+
+  const idx = PAIRS.findIndex(p=>p.a===a && p.b===b);
+  const oldPair = idx>=0 ? PAIRS[idx] : null;
+  const newPair = {a, b, value:v, condition:{}, source:note||'manual'};
+
+  if (idx>=0) {
+    const snapshot = JSON.parse(JSON.stringify(PAIRS)); // 先快照「修改前」
+    PAIRS[idx] = newPair;
+    pushHistory('修改讓桿', `${fmtPair(a,b,oldPair?oldPair.value:0)} → ${fmtPair(a,b,v)}${fmtCond(newPair.condition)}`, snapshot);
+  } else {
+    PAIRS.push(newPair);
+    pushHistory('新增讓桿', `${fmtPair(a,b,v)}${fmtCond(newPair.condition)}`);
+  }
+  saveData();
+  alert('儲存成功！');
+  navigate('edit');
+}
+
+function deletePair() {
+  const a = document.getElementById('edit-a').value;
+  const b = document.getElementById('edit-b').value;
+  if (!confirm(`確定刪除 ${pname(a)} 與 ${pname(b)} 的讓桿記錄？`)) return;
+  const idx = PAIRS.findIndex(p=>p.a===a && p.b===b);
+  if (idx>=0) {
+    const deleted = PAIRS.splice(idx,1)[0];
+    pushHistory('刪除讓桿', fmtPair(a,b,deleted.value));
+    saveData();
+    navigate('edit');
+  }
+}
+
+function deletePairByIdx(idx) {
+  const p = PAIRS[idx];
+  if (!confirm(`確定刪除 ${pname(p.a)} 與 ${pname(p.b)} 的讓桿記錄？`)) return;
+  const deleted = PAIRS.splice(idx,1)[0];
+  pushHistory('刪除讓桿', fmtPair(p.a,p.b,deleted.value), JSON.parse(JSON.stringify(PAIRS)));
+  saveData();
+  navigate('edit');
+}
+
+function pushHistory(title, desc, pairsSnapshot) {
+  const h = JSON.parse(localStorage.getItem('golf_history')||'[]');
+  h.push({
+    ts: new Date().toISOString().replace('T',' ').slice(0,19),
+    title,
+    desc,
+    editor,
+    pairsSnapshot: pairsSnapshot || null   // 若有快照，刪除此筆时可还原
+  });
+  localStorage.setItem('golf_history', JSON.stringify(h.slice(-200)));
+}
+
+function saveData() {
+  localStorage.setItem('golf_pairs', JSON.stringify(PAIRS));
+}
+
+function attachEvents() {
+  // re-attach any dynamic events
+}
+
+// ====== INIT ======
+// Restore editor
+if (localStorage.getItem('golf_editor')) {
+  editor = localStorage.getItem('golf_editor');
+}
+
+// Load saved pairs (merge with embedded)
+(function mergeData() {
+  const saved = localStorage.getItem('golf_pairs');
+  if (saved) {
+    try { const arr = JSON.parse(saved); if (arr.length>0) return; } catch(e){}
+  }
+  saveData();
+})();
+
+render();
+</script>
+</body>
+</html>
